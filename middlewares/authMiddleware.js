@@ -3,41 +3,30 @@ const User = require('../models/user');
 
 // Middleware xác thực JWT
 exports.authenticate = async (req, res, next) => {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Lấy token từ header
-            token = req.headers.authorization.split(' ')[1];
-
-            // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Lấy thông tin user từ database
-            req.user = await User.findById(decoded.id).select('-password');
-            if (!req.user) {
-                return res.status(401).json({ message: 'User not found' });
-            }
-
-            next();
-        } catch (error) {
-            console.error('Authentication error:', error);
-            return res.status(401).json({ message: 'Not authorized, token failed' });
+    try {
+        console.log('Authentication middleware - headers:', req.headers);
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication failed: No token provided' });
         }
-    }
-
-    if (!token) {
-        return res.status(401).json({ message: 'Not authorized, no token provided' });
+        
+        // Xác thực token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        console.error('Authentication error:', error);
+        return res.status(401).json({ message: 'Authentication failed: Invalid token' });
     }
 };
 
 // Middleware phân quyền Admin
 exports.authorizeAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        return res.status(403).json({ message: 'Not authorized as admin' });
+    console.log('Authorize admin middleware - user role:', req.user?.role);
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied: admin only' });
     }
+    next();
 };
 
 // Middleware phân quyền User

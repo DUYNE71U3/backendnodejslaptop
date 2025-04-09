@@ -10,6 +10,7 @@ const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
+const couponRoutes = require('./routes/couponRoutes');
 const path = require('path');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/wallet', walletRoutes); // Add route for wallet
 app.use('/api/wishlist', wishlistRoutes); // Add route for wishlist
+app.use('/api/coupons', couponRoutes); // Add route for coupons
 
 // Review routes
 app.use('/api/reviews', require('./routes/reviewRoutes'));

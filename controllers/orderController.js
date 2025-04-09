@@ -5,7 +5,7 @@ const Cart = require('../models/cart');
 // Tạo đơn hàng mới
 exports.createOrder = async (req, res) => {
     try {
-        const { shippingAddress, paymentMethod } = req.body;
+        const { shippingAddress, paymentMethod, couponCode, discount } = req.body;
         const userId = req.user.id;
         const user = await User.findById(userId);
         const cart = await Cart.find({ userId }).populate('productId');
@@ -22,7 +22,16 @@ exports.createOrder = async (req, res) => {
             product: item.productId._id,
             quantity: item.quantity
         }));
-        const totalPrice = cart.reduce((total, item) => total + item.productId.price * item.quantity, 0);
+        
+        // Tính tổng giá tiền
+        let totalPrice = cart.reduce((total, item) => total + item.productId.price * item.quantity, 0);
+        
+        // Áp dụng giảm giá nếu có coupon
+        let discountAmount = 0;
+        if (couponCode && discount) {
+            discountAmount = (totalPrice * discount) / 100;
+            totalPrice -= discountAmount;
+        }
 
         // Check if user has enough balance when using wallet
         if (paymentMethod === 'VNPAY' && user.walletBalance < totalPrice) {
@@ -38,7 +47,11 @@ exports.createOrder = async (req, res) => {
             products,
             shippingAddress,
             paymentMethod,
-            totalPrice
+            totalPrice,
+            // Thêm thông tin coupon nếu có
+            couponCode: couponCode || '',
+            discount: discount || 0,
+            discountAmount: discountAmount || 0
         });
 
         await order.save();

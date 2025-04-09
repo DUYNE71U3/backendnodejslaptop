@@ -13,6 +13,10 @@ const orderSchema = new mongoose.Schema({
     },
     paymentMethod: { type: String, enum: ['COD', 'VNPAY'], required: true },
     totalPrice: { type: Number, required: true },
+    // Thêm thông tin về coupon
+    couponCode: { type: String, default: '' },
+    discount: { type: Number, default: 0 },
+    discountAmount: { type: Number, default: 0 },
     status: { 
         type: String, 
         enum: [
