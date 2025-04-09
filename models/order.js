@@ -37,6 +37,16 @@ const orderSchema = new mongoose.Schema({
     deliveryNotes: { type: String },
     deliveryAttempts: { type: Number, default: 0 },
     deliveryDate: { type: Date },
+    
+    // Customer service fields
+    customerServiceNotes: { type: String },
+    customerServiceAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    customerContactHistory: [{
+        date: { type: Date, default: Date.now },
+        note: { type: String },
+        agent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
+    
     createdAt: { type: Date, default: Date.now }
 });
 

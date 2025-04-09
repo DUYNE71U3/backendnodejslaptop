@@ -122,3 +122,44 @@ exports.getAllDeliveryAccounts = async (req, res) => {
         res.status(500).json({ message: 'Error fetching delivery accounts', error });
     }
 };
+
+// Create customer service account (admin only)
+exports.createCustomerServiceAccount = async (req, res) => {
+    try {
+        const { username, email, password, phoneNumber } = req.body;
+
+        // Check if username or email already exists
+        const existingUser = await User.findOne({ username });
+        if (existingUser) return res.status(400).json({ message: 'Username already exists' });
+
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail) return res.status(400).json({ message: 'Email already exists' });
+
+        // Create customer service account
+        const user = new User({ 
+            username, 
+            email, 
+            password, 
+            role: 'customer_service',
+            phoneNumber
+        });
+        await user.save();
+
+        res.status(201).json({ message: 'Customer service account created successfully' });
+    } catch (error) {
+        console.error('Error creating customer service account:', error);
+        res.status(500).json({ message: 'Error creating customer service account', error });
+    }
+};
+
+// Get all customer service accounts (admin only)
+exports.getAllCustomerServiceAccounts = async (req, res) => {
+    try {
+        const customerServiceAccounts = await User.find({ role: 'customer_service' })
+            .select('-password');
+        res.json(customerServiceAccounts);
+    } catch (error) {
+        console.error('Error fetching customer service accounts:', error);
+        res.status(500).json({ message: 'Error fetching customer service accounts', error });
+    }
+};

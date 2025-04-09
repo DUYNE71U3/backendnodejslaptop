@@ -4,23 +4,27 @@ const Cart = require('../models/cart');
 exports.getCart = async (req, res) => {
     try {
         const userId = req.user.id;
-        const cart = await Cart.find({ userId }).populate('productId', 'name price image');
+        console.log('Fetching cart for user ID:', userId);
+        
+        const cart = await Cart.find({ userId }).populate('productId', 'name price image brand');
 
-        // Ensure all cart items have valid data
+        // Map qua các cart item để tạo định dạng phù hợp với frontend
         const cartWithDefaults = cart.map(item => ({
             _id: item._id,
             productId: item.productId._id,
             name: item.productId.name || 'Unknown Product',
             price: item.productId.price || 0,
             image: item.productId.image || null,
+            brand: item.productId.brand || '',
             quantity: item.quantity,
             addedAt: item.addedAt
         }));
 
+        console.log('Cart items returned:', cartWithDefaults.length);
         res.json(cartWithDefaults);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error fetching cart' });
+        console.error('Error fetching cart:', error);
+        res.status(500).json({ message: 'Error fetching cart', error: error.message });
     }
 };
 
@@ -49,7 +53,7 @@ exports.addToCart = async (req, res) => {
             return res.status(201).json({ message: 'Product added to cart', cartItem });
         }
     } catch (error) {
-        console.error(error);
+        console.error('Error adding to cart:', error);
         res.status(500).json({ message: 'Error adding to cart' });
     }
 };
@@ -57,10 +61,17 @@ exports.addToCart = async (req, res) => {
 // Xóa sản phẩm khỏi giỏ hàng
 exports.removeFromCart = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.id;        
         const productId = req.params.productId;
         
+        console.log(`Removing product from cart - userId: ${userId}, productId: ${productId}`);
+        
+        if (!productId) {
+            return res.status(400).json({ message: 'Product ID is required' });
+        }
+        
         const result = await Cart.deleteOne({ userId, productId });
+        console.log('Delete result:', result);
 
         if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Product not found in cart' });
@@ -68,7 +79,7 @@ exports.removeFromCart = async (req, res) => {
 
         res.status(200).json({ message: 'Product removed from cart' });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error removing from cart' });
+        console.error('Error removing from cart:', error);
+        res.status(500).json({ message: 'Error removing from cart', error: error.message });
     }
 };

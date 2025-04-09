@@ -62,29 +62,47 @@ exports.createOrder = async (req, res) => {
 // Lấy tất cả đơn hàng (chỉ admin)
 exports.getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find().populate('user', 'username').populate('products.product', 'name price');
+        const orders = await Order.find()
+            .populate('user', 'username email')
+            .populate('products.product', 'name price');
+        console.log('Orders fetched:', orders); // Debugging
         res.json(orders);
     } catch (error) {
-        console.error(error);
+        console.error('Error fetching orders:', error);
         res.status(500).json({ message: 'Error fetching orders', error });
     }
 };
 
-// Cập nhật trạng thái đơn hàng (chỉ admin)
+// Cập nhật trạng thái đơn hàng (admin and customer service)
 exports.updateOrderStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
         const { status } = req.body;
 
-        const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true });
-
+        const order = await Order.findById(orderId);
+        
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
+        // Update the order status
+        order.status = status;
+        
+        // If status is changed to "Ready for Delivery", reset any delivery person assignment
+        if (status === 'Ready for Delivery' && order.deliveryPerson) {
+            order.deliveryPerson = null;
+            order.deliveryStatus = 'Not Assigned';
+        }
+
+        await order.save();
+
+        // Phát sự kiện qua Socket.IO
+        const io = req.app.get('socketio'); // Lấy Socket.IO instance
+        io.emit('order_updated', { orderId, status }); // Phát sự kiện
+
         res.json({ message: 'Order status updated successfully', order });
     } catch (error) {
-        console.error(error);
+        console.error('Error updating order status:', error);
         res.status(500).json({ message: 'Error updating order status', error });
     }
 };
@@ -122,9 +140,22 @@ exports.assignDelivery = async (req, res) => {
         order.deliveryPerson = deliveryPersonId;
         order.deliveryStatus = 'Assigned';
         order.status = 'Assigned to Delivery';
+        
+        // If called by customer service, track who made the change
+        if (req.user.role === 'customer_service') {
+            order.customerContactHistory.push({
+                note: `Order assigned to delivery person ${deliveryPerson.username} by customer service`,
+                agent: req.user.id
+            });
+        }
+        
         await order.save();
 
-        res.json({ message: 'Order assigned to delivery person', order });
+        res.json({ 
+            message: 'Order assigned to delivery person', 
+            order,
+            assignedBy: req.user.role
+        });
     } catch (error) {
         console.error('Error assigning delivery:', error);
         res.status(500).json({ message: 'Error assigning delivery', error });
@@ -205,5 +236,74 @@ exports.updateDeliveryStatus = async (req, res) => {
     } catch (error) {
         console.error('Error updating delivery status:', error);
         res.status(500).json({ message: 'Error updating delivery status', error });
+    }
+};
+
+// Add customer service note to order
+exports.addCustomerNote = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { note } = req.body;
+        const userId = req.user.id;
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Add note to contact history
+        order.customerContactHistory.push({
+            note,
+            agent: userId
+        });
+
+        // Update customer service fields
+        order.customerServiceNotes = note;
+        order.customerServiceAgent = userId;
+
+        await order.save();
+
+        res.json({ message: 'Customer service note added', order });
+    } catch (error) {
+        console.error('Error adding customer note:', error);
+        res.status(500).json({ message: 'Error adding customer note', error });
+    }
+};
+
+// Get customer service dashboard data
+exports.getCustomerServiceDashboard = async (req, res) => {
+    try {
+        // Get total number of orders
+        const totalOrders = await Order.countDocuments();
+        
+        // Get orders with customer service interactions
+        const handledOrders = await Order.countDocuments({ customerServiceAgent: { $exists: true, $ne: null } });
+        
+        // Get orders by status
+        const pendingOrders = await Order.countDocuments({ status: 'Pending' });
+        const processingOrders = await Order.countDocuments({ status: 'Processing' });
+        const deliveredOrders = await Order.countDocuments({ status: 'Delivered' });
+        const cancelledOrders = await Order.countDocuments({ status: 'Cancelled' });
+        
+        // Get recent orders
+        const recentOrders = await Order.find()
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('user', 'username');
+        
+        res.json({
+            totalOrders,
+            handledOrders,
+            ordersByStatus: {
+                pending: pendingOrders,
+                processing: processingOrders,
+                delivered: deliveredOrders,
+                cancelled: cancelledOrders
+            },
+            recentOrders
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        res.status(500).json({ message: 'Error fetching dashboard data', error });
     }
 };

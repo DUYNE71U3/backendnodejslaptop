@@ -57,3 +57,12 @@ exports.authorizeDelivery = (req, res, next) => {
         return res.status(403).json({ message: 'Not authorized as delivery personnel' });
     }
 };
+
+// Middleware to authorize customer service personnel
+exports.authorizeCustomerService = (req, res, next) => {
+    if (req.user && req.user.role === 'customer_service') {
+        next();
+    } else {
+        return res.status(403).json({ message: 'Not authorized as customer service personnel' });
+    }
+};
