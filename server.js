@@ -11,6 +11,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const couponRoutes = require('./routes/couponRoutes');
+const tagRoutes = require('./routes/tagRoutes'); // Import tag routes
+const postRoutes = require('./routes/postRoutes'); // Import post routes
 const path = require('path');
 
 const app = express();
@@ -27,7 +29,16 @@ app.use(bodyParser.json());
 const cors = require('cors');
 app.use(cors()); // Cho phép tất cả các origin
 
-// Middleware phục vụ file tĩnh
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Created uploads directory');
+}
+
+// Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
@@ -39,6 +50,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/wallet', walletRoutes); // Add route for wallet
 app.use('/api/wishlist', wishlistRoutes); // Add route for wishlist
 app.use('/api/coupons', couponRoutes); // Add route for coupons
+app.use('/api/tags', tagRoutes); // Use tag routes
+app.use('/api/posts', postRoutes); // Add post routes
 
 // Review routes
 app.use('/api/reviews', require('./routes/reviewRoutes'));
